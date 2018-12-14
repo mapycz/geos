@@ -22,6 +22,10 @@
 #include <geos/noding/SegmentSetMutualIntersector.h>
 #include <geos/noding/MCIndexSegmentSetMutualIntersector.h>
 #include <geos/algorithm/LineIntersector.h>
+#include <geos/index/chain/MonotoneChainBuilder.h>
+#include <geos/index/strtree/STRtree.h>
+
+using namespace geos::index::chain;
 
 namespace geos {
 namespace noding { // geos::noding
@@ -29,6 +33,36 @@ namespace noding { // geos::noding
 /*
  * private:
  */
+
+void
+FastSegmentSetIntersectionFinder::setBaseSegments(SegmentString::ConstVect* segStrings)
+{
+	// NOTE - mloskot: const qualifier is removed silently, dirty.
+
+	int indexCounter = 0;
+	for (std::size_t i = 0, n = segStrings->size(); i < n; i++)
+	{
+		const SegmentString* css = (*segStrings)[i];
+		SegmentString* ss = const_cast<SegmentString*>(css);
+		addToIndex(ss, indexCounter);
+	}
+}
+
+void
+FastSegmentSetIntersectionFinder::addToIndex(SegmentString* segStr, int & indexCounter)
+{
+	MonoChains segChains;
+	MonotoneChainBuilder::getChains(segStr->getCoordinates(), segStr, segChains);
+
+	MonoChains::size_type n = segChains.size();
+	chainStore.reserve(chainStore.size() + n);
+	for (auto& mc : segChains)
+	{
+		mc->setId(indexCounter++);
+		this->index->insert(&(mc->getEnvelope()), mc.get());
+		chainStore.push_back(std::move(mc));
+	}
+}
 
 /*
  * protected:
@@ -38,17 +72,17 @@ namespace noding { // geos::noding
  * public:
  */
 FastSegmentSetIntersectionFinder::
-FastSegmentSetIntersectionFinder( noding::SegmentString::ConstVect * baseSegStrings)
-:	segSetMutInt( new MCIndexSegmentSetMutualIntersector()),
-	lineIntersector( new LineIntersector())
+FastSegmentSetIntersectionFinder( noding::SegmentString::ConstVect * baseSegStrings) :
+	index(new geos::index::strtree::STRtree())
 {
-	segSetMutInt->setBaseSegments( baseSegStrings);
+	setBaseSegments(baseSegStrings);
 }
 
 bool
 FastSegmentSetIntersectionFinder::
 intersects( noding::SegmentString::ConstVect * segStrings)
 {
+	std::unique_ptr<geos::algorithm::LineIntersector> lineIntersector(new LineIntersector());
 	SegmentIntersectionDetector intFinder(lineIntersector.get());
 
 	return this->intersects( segStrings, &intFinder);
@@ -59,8 +93,10 @@ FastSegmentSetIntersectionFinder::
 intersects( noding::SegmentString::ConstVect * segStrings,
 			SegmentIntersectionDetector * intDetector)
 {
+	std::unique_ptr<MCIndexSegmentSetMutualIntersector> segSetMutInt(
+		new MCIndexSegmentSetMutualIntersector());
 	segSetMutInt->setSegmentIntersector( intDetector);
-	segSetMutInt->process( segStrings);
+	segSetMutInt->process(index.get(), segStrings);
 
 	return intDetector->hasIntersection();
 }

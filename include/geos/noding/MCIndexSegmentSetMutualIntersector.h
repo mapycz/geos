@@ -30,12 +30,8 @@ namespace geos {
 		namespace chain {
 			class MonotoneChain;
 		}
-		namespace strtree {
-			//class STRtree;
-		}
 	}
 	namespace noding {
-		class SegmentString;
 		class SegmentIntersector;
 	}
 }
@@ -54,20 +50,16 @@ namespace noding { // geos::noding
 class MCIndexSegmentSetMutualIntersector : public SegmentSetMutualIntersector
 {
 public:
+	typedef std::vector<std::unique_ptr<index::chain::MonotoneChain>> MonoChains;
 
 	MCIndexSegmentSetMutualIntersector();
 
 	~MCIndexSegmentSetMutualIntersector() override;
 
-	index::SpatialIndex* getIndex()
-	{
-		return index;
-	}
+	void process(SegmentString::ConstVect* segStrings) override {};
+	void process(index::SpatialIndex * index, SegmentString::ConstVect* segStrings);
 
-	void setBaseSegments(SegmentString::ConstVect* segStrings) override;
-
-	// NOTE: re-populates the MonotoneChain vector with newly created chains
-	void process(SegmentString::ConstVect* segStrings) override;
+	void setBaseSegments(SegmentString::ConstVect* segStrings) override { }
 
     class SegmentOverlapAction : public index::chain::MonotoneChainOverlapAction
     {
@@ -88,31 +80,9 @@ public:
     };
 
 private:
+	void intersectChains(index::SpatialIndex * index, const MonoChains & monoChains);
 
-	typedef std::vector<std::unique_ptr<index::chain::MonotoneChain>> MonoChains;
-	MonoChains monoChains;
-
-	/*
-	 * The {@link SpatialIndex} used should be something that supports
-	 * envelope (range) queries efficiently (such as a {@link Quadtree}
-	 * or {@link STRtree}.
-	 */
-	index::SpatialIndex * index;
-	int indexCounter;
-	int processCounter;
-	// statistics
-	int nOverlaps;
-
-	/* memory management helper, holds MonotoneChain objects used
-	 * in the SpatialIndex. It's cleared when the SpatialIndex is
-	 */
-	MonoChains chainStore;
-
-	void addToIndex( SegmentString * segStr);
-
-	void intersectChains();
-
-	void addToMonoChains( SegmentString * segStr);
+	void addToMonoChains( SegmentString * segStr, MonoChains & monoChains, int & processCounter);
 
 };
 

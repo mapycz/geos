@@ -25,15 +25,15 @@
 
 #include <memory>
 
+#include <geos/index/chain/MonotoneChain.h>
+#include <geos/index/SpatialIndex.h>
+
 //forward declarations
 namespace geos {
 	namespace noding {
 		class SegmentIntersectionDetector;
-		class SegmentSetMutualIntersector;
-		//class MCIndexSegmentSetMutualIntersector : public SegmentSetMutualIntersector;
 	}
 }
-
 
 namespace geos {
 namespace noding { // geos::noding
@@ -50,25 +50,22 @@ namespace noding { // geos::noding
 class FastSegmentSetIntersectionFinder
 {
 private:
-	std::unique_ptr<MCIndexSegmentSetMutualIntersector> segSetMutInt;
-	std::unique_ptr<geos::algorithm::LineIntersector> lineIntersector;
+	typedef std::vector<std::unique_ptr<index::chain::MonotoneChain>> MonoChains;
+	MonoChains chainStore;
+	/*
+	 * The {@link SpatialIndex} used should be something that supports
+	 * envelope (range) queries efficiently (such as a {@link Quadtree}
+	 * or {@link STRtree}.
+	 */
+	std::unique_ptr<index::SpatialIndex> index;
 
+	void setBaseSegments(SegmentString::ConstVect* segStrings);
+	void addToIndex(SegmentString* segStr, int & indexCounter);
 protected:
 public:
 	FastSegmentSetIntersectionFinder( SegmentString::ConstVect * baseSegStrings);
 
 	~FastSegmentSetIntersectionFinder() = default;
-
-	/**
-	 * Gets the segment set intersector used by this class.
-	 * This allows other uses of the same underlying indexed structure.
-	 *
-	 * @return the segment set intersector used
-	 */
-	const SegmentSetMutualIntersector * getSegmentSetIntersector() const
-	{
-		return segSetMutInt.get();
-	}
 
 	bool intersects( SegmentString::ConstVect * segStrings);
 	bool intersects( SegmentString::ConstVect * segStrings, SegmentIntersectionDetector * intDetector);

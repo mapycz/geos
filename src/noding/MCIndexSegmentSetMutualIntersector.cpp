@@ -23,8 +23,6 @@
 #include <geos/index/SpatialIndex.h>
 #include <geos/index/chain/MonotoneChain.h>
 #include <geos/index/chain/MonotoneChainBuilder.h>
-#include <geos/index/chain/MonotoneChainOverlapAction.h>
-#include <geos/index/strtree/STRtree.h>
 // std
 #include <cstddef>
 
@@ -35,26 +33,7 @@ namespace noding { // geos::noding
 
 /*private*/
 void
-MCIndexSegmentSetMutualIntersector::addToIndex(SegmentString* segStr)
-{
-    MonoChains segChains;
-    MonotoneChainBuilder::getChains(segStr->getCoordinates(),
-      segStr, segChains);
-
-    MonoChains::size_type n = segChains.size();
-    chainStore.reserve(chainStore.size() + n);
-    for (auto& mc : segChains)
-    {
-        mc->setId(indexCounter++);
-        index->insert(&(mc->getEnvelope()), mc.get());
-        chainStore.push_back(std::move(mc));
-    }
-}
-
-
-/*private*/
-void
-MCIndexSegmentSetMutualIntersector::intersectChains()
+MCIndexSegmentSetMutualIntersector::intersectChains(index::SpatialIndex * index, const MonoChains & monoChains)
 {
     MCIndexSegmentSetMutualIntersector::SegmentOverlapAction overlapAction( *segInt);
 
@@ -68,7 +47,6 @@ MCIndexSegmentSetMutualIntersector::intersectChains()
             MonotoneChain * testChain = (MonotoneChain *)(overlapChains[j]);
 
             queryChain->computeOverlaps( testChain, &overlapAction);
-            nOverlaps++;
             if (segInt->isDone())
                 return;
         }
@@ -77,7 +55,7 @@ MCIndexSegmentSetMutualIntersector::intersectChains()
 
 /*private*/
 void
-MCIndexSegmentSetMutualIntersector::addToMonoChains(SegmentString* segStr)
+MCIndexSegmentSetMutualIntersector::addToMonoChains(SegmentString* segStr, MonoChains & monoChains, int & processCounter)
 {
     MonoChains segChains;
     MonotoneChainBuilder::getChains(segStr->getCoordinates(),
@@ -94,58 +72,35 @@ MCIndexSegmentSetMutualIntersector::addToMonoChains(SegmentString* segStr)
 
 /* public */
 MCIndexSegmentSetMutualIntersector::MCIndexSegmentSetMutualIntersector()
-:	monoChains(),
-index(new geos::index::strtree::STRtree()),
-indexCounter(0),
-processCounter(0),
-nOverlaps(0)
 {
 }
 
 /* public */
 MCIndexSegmentSetMutualIntersector::~MCIndexSegmentSetMutualIntersector()
 {
-    delete index;
-
     MonoChains::iterator i, e;
-}
-
-/* public */
-void
-MCIndexSegmentSetMutualIntersector::setBaseSegments(SegmentString::ConstVect* segStrings)
-{
-    // NOTE - mloskot: const qualifier is removed silently, dirty.
-
-    for (std::size_t i = 0, n = segStrings->size(); i < n; i++)
-    {
-        const SegmentString* css = (*segStrings)[i];
-        SegmentString* ss = const_cast<SegmentString*>(css);
-        addToIndex(ss);
-    }
 }
 
 /*public*/
 void
-MCIndexSegmentSetMutualIntersector::process(SegmentString::ConstVect * segStrings)
+MCIndexSegmentSetMutualIntersector::process(index::SpatialIndex * index,
+                                            SegmentString::ConstVect * segStrings)
 {
-    processCounter = indexCounter + 1;
-    nOverlaps = 0;
-
-    monoChains.clear();
+    int processCounter = 0; //indexCounter + 1;
+    MonoChains monoChains;
 
     for (SegmentString::ConstVect::size_type i = 0, n = segStrings->size(); i < n; i++)
     {
         SegmentString * seg = (SegmentString *)((*segStrings)[i]);
-        addToMonoChains( seg);
+        addToMonoChains( seg, monoChains, processCounter);
     }
-    intersectChains();
+    intersectChains(index, monoChains);
 }
-
 
 /* public */
 void
 MCIndexSegmentSetMutualIntersector::SegmentOverlapAction::overlap(
-	MonotoneChain& mc1, size_t start1, MonotoneChain& mc2, size_t start2)
+    MonotoneChain& mc1, size_t start1, MonotoneChain& mc2, size_t start2)
 {
     SegmentString * ss1 = (SegmentString *)(mc1.getContext());
     SegmentString * ss2 = (SegmentString *)(mc2.getContext());
