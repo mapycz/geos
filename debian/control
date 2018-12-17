@@ -3,8 +3,7 @@ Section: science
 Priority: optional
 Maintainer: Jiri Drbalek <jiri.drbalek@firma.seznam.cz>
 Build-Depends: debhelper (>= 4.0.0),
-    g++, doxygen,
-    autoconf2.13, autotools-dev
+    g++, autoconf, autotools-dev
 Standards-Version: 3.9.6
 
 Package: szn-libgeos
