@@ -99,8 +99,6 @@ public:
 	MonotoneChain(const geom::CoordinateSequence& pts,
                   std::size_t start, std::size_t end, void* context);
 
-	~MonotoneChain();
-
 	/// Returned envelope is owned by this class
 	const geom::Envelope& getEnvelope() const;
 
@@ -151,8 +149,8 @@ private:
 	/// Externally owned
 	const geom::CoordinateSequence& pts;
 
-	/// Owned by this class, lazely created
-	mutable geom::Envelope* env;
+	/// Owned by this class
+	const geom::Envelope env;
 
 	/// user-defined information
 	void* context;
