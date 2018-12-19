@@ -1,3 +1,9 @@
+szn-libgeos (3.7.0~rc1-2) Seznam; urgency=medium
+
+  * MonotoneChain: Don't lazy-initialize the envelope
+
+ -- Jiri Drbalek <jiri.drbalek@firma.seznam.cz>  Wed, 19 Dec 2018 13:08:06 +0100
+
 szn-libgeos (3.7.0~rc1-1) Seznam; urgency=medium
 
   * Initial szn release
